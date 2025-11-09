@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>SUPERVECTAR SERIES</title>
+<style>
+:root{
+  --bg:#071025;
+  --card:#0b1220;
+  --muted:#9aa4b2;
+  --highlight:#ffeb3b;
+  --font-size:16px;
+}
+body{
+  font-family:Inter,system-ui;
+  background:linear-gradient(180deg,#041025 0%,var(--bg) 100%);
+  color:#eef2f7;
+  margin:0;
+  padding:16px;
+  font-size: var(--font-size);
+  overflow-x:hidden;
+}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;}
+h1{font-size:20px;margin:0;color:var(--highlight);font-weight:900;text-shadow:0 0 6px rgba(255,255,0,0.5);}
+input[type=search], select{padding:12px 16px;border-radius:10px;border:1px solid rgba(0,0,0,0.4);background:var(--highlight);color:#000;font-weight:bold;font-size:16px;}
+h2{margin-top:24px;color:#ffeb3b;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;}
+.card{cursor:pointer;border-radius:8px;overflow:hidden;outline:none;transition: transform 0.2s, box-shadow 0.2s;}
+.card:hover, .card:focus{transform: scale(1.05); box-shadow:0 8px 20px rgba(255,235,59,0.6);}
+.card .img{width:100%;height:220px;object-fit:cover;border-radius:8px;}
+.card .title{font-weight:700;font-size:14px;margin-top:4px;}
+.card .meta{color:var(--muted);font-size:12px;margin-top:2px;}
+.overlay{position: fixed;inset:0;display:none;align-items:center;justify-content:center;background: rgba(0,0,0,0.85);z-index:9998;padding:10px;}
+.overlay.show{display:flex;}
+.modal{width:100%;max-width:600px;background:#071028;border-radius:12px;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,0.6);display:flex;flex-direction:column;gap:12px;}
+.modal-header{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.seasons{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;}
+.season-btn{flex:0 0 auto;padding:10px 14px;font-size:14px;border:none;border-radius:8px;cursor:pointer;background:#222;color:#fff;outline:none;transition: all 0.2s;}
+.season-btn.active{background:var(--highlight); box-shadow: 0 0 12px var(--highlight); transform: scale(1.1);}
+.episodes-grid{display:grid;grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));gap:8px;}
+.episode-card{background: var(--card);padding:8px;border-radius:8px;text-align:center;outline:none;transition: all 0.2s;}
+.episode-card.focused{box-shadow:0 0 12px var(--highlight); transform: scale(1.05);}
+.play-btn{margin-top:6px;padding:8px;border:0;border-radius:8px;background: var(--highlight);color:#000;cursor:pointer;width:100%;font-size:14px;transition: all 0.2s;}
+.play-btn:hover, .play-btn:focus{background:var(--highlight);color:#000;outline:none;}
+.pagination{display:flex;justify-content:center;gap:6px;margin-top:12px;}
+.pagination button{padding:10px 14px;border-radius:6px;border:1px solid #fff;background:transparent;color:#fff;cursor:pointer;font-size:14px;}
+.pagination button.active{background:var(--highlight);color:#000;}
+.seasons::-webkit-scrollbar{display: none;}
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <img src="https://i.ibb.co/HpTQSGB3/cineseries.png" style="height:42px;width:42px;border-radius:50%;object-fit:cover;">
+    <div><h1>SUPERVECTAR SERIES</h1></div>
+  </div>
+  <div class="controls" style="display:flex;gap:8px;flex-wrap:wrap;">
+    <input id="search" type="search" placeholder="Buscar..." tabindex="0">
+    <select id="genre-filter" tabindex="0">
+      <option value="all">Género</option>	  
+      <option value="Acción">Acción</option>
+      <option value="Comedia">Comedia</option>
+      <option value="Drama">Drama</option>
+      <option value="Sci-Fi">Sci-Fi</option>
+      <option value="Thriller">Thriller</option>	  
+      <option value="Terror">Terror</option>
+    </select>
+    <select id="filterYear" style="width:100px" tabindex="0"><option value="">Año</option></select>
+  </div>
+</header>
+
+<main>
+  <h2>Series</h2>
+  <div id="series-grid" class="grid"></div>
+  <div id="series-pagination" class="pagination"></div>
+</main>
+
+<div id="overlay" class="overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div id="modal-title" class="modal-title"></div>
+        <div id="modal-sub" style="color:var(--muted);font-size:13px;margin-top:4px"></div>
+      </div>
+      <button id="modal-close" aria-label="Cerrar modal" tabindex="0">✕</button>
+    </div>
+    <div class="seasons" id="seasons"></div>
+    <div class="episodes-grid" id="episodes"></div>
+  </div>
+</div>
+
+<script>
+
+// DATOS
+const mediaData = [
+  { id:'laqueseavecina', type:'series', title:'La que se avecina', year:2026, genre:'Comedia', poster:'https://upload.wikimedia.org/wikipedia/commons/0/09/LaQueSeAvecina.jpg',
+    seasons:[{season:1, episodes:[{title:'TODAS LAS TEMPORADAS', link:'https://cuatro.comunidadmontepinar.eu/'}]}]
+  },
+
+  { id:'alienplanetatierra', type:'series', title:'Alien planeta tierra', year:2025, genre:'Sci-Fi', poster:'https://es.web.img3.acsta.net/r_1920_1080/img/57/36/5736157cbb0f715b263d941bfa58f4a6.jpg',
+    seasons:[{season:1, episodes:[
+      {title:'T1 · Ep1', link:'https://filemoon.to/d/5ef9wvb6xelu/Alien_Planeta_Tierra_1x01_mp4.mp4'},
+      {title:'T1 · Ep2', link:'https://filemoon.to/d/mzxr6pbb0a39/Alien_Planeta_Tierra_1x02_mp4.mp4'},
+      {title:'T1 · Ep3', link:'https://filemoon.to/d/zhatiglgr096/Alien_Planeta_Tierra_1x03_mp4.mp4'},
+      {title:'T1 · Ep4', link:'https://filemoon.to/d/envacz7zj45p/Alien_Planeta_Tierra_1x04_mp4.mp4'},
+      {title:'T1 · Ep5', link:'https://filemoon.to/d/h8v0u5t10mve/Alien_Planeta_Tierra_1x05_mp4.mp4'},
+      {title:'T1 · Ep6', link:'https://filemoon.to/d/4i7a09xduonw/Alien_Planeta_Tierra_1x06_mp4.mp4'},
+      {title:'T1 · Ep7', link:'https://filemoon.to/d/pm9jz44zyevu/Alien_Planeta_Tierra_1x07_mp4.mp4'},
+      {title:'T1 · Ep8', link:'https://filemoon.to/d/1zjd1kaiiuur/Alien_planeta_tierra_1x08_mp4.mp4'}
+    ]}]
+  },
+
+  { id:'respira', type:'series', title:'Respira', year:2025, genre:'Drama', poster:'https://es.web.img3.acsta.net/r_1920_1080/img/50/23/502382d1a0244da260c261f01350f976.jpg',
+    seasons:[
+      {season:1, episodes:[
+        {title:'T1 · Ep1', link:'https://filemoon.to/d/ggck5jkhzka3/Respira_1x01_mp4.mp4'},
+        {title:'T1 · Ep2', link:'https://filemoon.to/d/urrz4h8dov2e/Respira_1x02_mp4.mp4'},
+        {title:'T1 · Ep3', link:'https://filemoon.to/d/7oe4ry7uaxv0/Respira_1x03_mp4.mp4'},
+        {title:'T1 · Ep4', link:'https://filemoon.to/d/21jlbdrvedoz/Respira_1x04_mp4.mp4'},
+        {title:'T1 · Ep5', link:'https://filemoon.to/d/zgr4b035fvfk/Respira_1x05_mp4.mp4'},
+        {title:'T1 · Ep6', link:'https://filemoon.to/d/88et5qmaraz0/Respira_1x06_mp4.mp4'},
+        {title:'T1 · Ep7', link:'https://filemoon.to/d/l9q0ovjq526t/Respira_1x07_mp4.mp4'},
+        {title:'T1 · Ep8', link:'https://filemoon.to/d/w7wf3opl1u95/Respira_1x08_mp4.mp4'}
+      ]},
+      {season:2, episodes:[
+        {title:'T2 · Ep1', link:'https://filemoon.to/d/56s7qv22pb09/Respira_2x01__720__mp4.mp4'},
+        {title:'T2 · Ep2', link:'https://filemoon.to/d/h2e1rur62u4d/Respira_2x02__720__mp4.mp4'},
+        {title:'T2 · Ep3', link:'https://filemoon.to/d/gvdynpqg2k6x/Respira_2x03__720__mp4.mp4'},
+        {title:'T2 · Ep4', link:'https://filemoon.to/d/j2r1g83jbm6h/Respira_2x04__720__mp4.mp4'},
+        {title:'T2 · Ep5', link:'https://filemoon.to/d/rwdtup8onmh9/Respira_2x05__720__mp4.mp4'},
+        {title:'T2 · Ep6', link:'https://filemoon.to/d/hldr6chiyghk/Respira_2x06__720__mp4.mp4'},
+        {title:'T2 · Ep7', link:'https://filemoon.to/d/7g7cwwcdm62x/Respira_2x07__720__mp4.mp4'},
+        {title:'T2 · Ep8', link:'https://filemoon.to/d/leur8x8rlsad/Respira_2x08__720__mp4.mp4'}
+      ]}
+    ]
+  },
+
+  { id:'elrefugioatomico', type:'series', title:'El refugio atomico', year:2025, genre:'Thriller', poster:'https://es.web.img3.acsta.net/r_1920_1080/img/8b/d8/8bd8505edf0b3b1807119d9556524bfb.jpg',
+    seasons:[{season:1, episodes:[
+      {title:'T1 · Ep1', link:'https://filemoon.to/d/w8a6y2iszg6t/El_refugio_at_mico_1x01_mp4.mp4'},
+      {title:'T1 · Ep2', link:'https://filemoon.to/d/vxdv5e7paoeo/El_refugio_at_mico_1x02_mp4.mp4'},
+      {title:'T1 · Ep3', link:'https://filemoon.to/d/q0hsgpm3igkl/El_refugio_at_mico_1x03_mp4.mp4'},
+      {title:'T1 · Ep4', link:'https://filemoon.to/d/39j9xz00k4wy/El_refugio_at_mico_1x04_mp4.mp4'},
+      {title:'T1 · Ep5', link:'https://filemoon.to/d/5z1fjp30rjro/El_refugio_at_mico_1x05_mp4.mp4'},
+      {title:'T1 · Ep6', link:'https://filemoon.to/d/5bsh6bmqfops/El_refugio_at_mico_1x06_mp4.mp4'},
+      {title:'T1 · Ep7', link:'https://filemoon.to/d/wyobdh08cs54/El_refugio_at_mico_1x07_mp4.mp4'},
+      {title:'T1 · Ep8', link:'https://filemoon.to/d/9vkobdxfwb4r/El_refugio_at_mico_1x08_mp4.mp4'}
+    ]}]
+  },
+
+  { id:'dostumbas', type:'series', title:'Dos tumbas', year:2025, genre:'Drama', poster:'https://es.web.img3.acsta.net/r_1920_1080/img/ed/cb/edcbfa403b455f8e3f24a82f2b6b7937.jpg',
+    seasons:[{season:1, episodes:[
+      {title:'T1 · Ep1', link:'https://filemoon.to/d/ff7c64hjyjwn/Dos_tumbas_1x01_mp4.mp4'},
+      {title:'T1 · Ep2', link:'https://filemoon.to/d/arptw94edhtr/Dos_tumbas_1x02_mp4.mp4'},
+      {title:'T1 · Ep3', link:'https://filemoon.to/d/sijdtparoq8u/Dos_tumbas_1x03_mp4.mp4'}
+    ]}]
+  },
+
+  { id:'30monedas', type:'series', title:'30 monedas', year:2020, genre:'Terror', poster:'https://es.web.img3.acsta.net/r_1920_1080/pictures/20/11/17/12/27/0826197.jpg',
+    seasons:[
+      {season:1, episodes:[
+        {title:'T1 · Ep1', link:'https://filemoon.to/d/yzklwkcrw64w/30_Monedas_-_1x01_Telara_as.mp4'},
+        {title:'T1 · Ep2', link:'https://filemoon.to/d/eul1dkf8numu/30_Monedas_-_1x02_Ouija.mp4'},
+        {title:'T1 · Ep3', link:'https://filemoon.to/d/dif0ydiphi71/30_Monedas_-_1x03_El_espejo.mp4'},
+        {title:'T1 · Ep4', link:'https://filemoon.to/d/tmubuhfy2po9/30_Monedas_-_1x04_Recuerdos.mp4'},
+        {title:'T1 · Ep5', link:'https://filemoon.to/d/y3vomz482v6m/30_Monedas_-_1x05_El_doble.mp4'},
+        {title:'T1 · Ep6', link:'https://filemoon.to/d/lra9rz0seekn/30_Monedas_-_1x06_Guerra_Santa.mp4'},
+        {title:'T1 · Ep7', link:'https://filemoon.to/d/e71772736yd2/30_Monedas_-_1x07_La_caja_de_cristal.mp4'},
+        {title:'T1 · Ep8', link:'https://filemoon.to/d/hg0eed2c2t7h/30_Monedas_-_1x08_Sacrificio.mp4'}
+      ]},
+
+      {season:2, episodes:[
+        {title:'T2 · Ep1', link:'https://filemoon.to/d/xhhepmnj9rx4/30_Monedas_2x1_EL_PUEBLO_FANTASMA.mp4'},
+        {title:'T2 · Ep2', link:'https://filemoon.to/d/ofc8340q1jdd/30_Monedas_2x2_LAS_TIERRAS_DEL_SUE_O.mp4'},
+        {title:'T2 · Ep3', link:'https://filemoon.to/d/skn48361xwoq/30_Monedas_2x3_CRIATURAS_INFERNALES.mp4'},
+        {title:'T2 · Ep4', link:'https://filemoon.to/d/n23bfy4ainf7/30_Monedas_2x4_EL_LIBRO_NEGRO_DE_ARABE_LOCO.mp4'},
+        {title:'T2 · Ep5', link:'https://filemoon.to/d/dovihz0fw49t/30_Monedas_2x5_EL_SIMBOLO_ARCANO.mp4'},
+        {title:'T2 · Ep6', link:'https://filemoon.to/d/o2myrqqurgiq/30_Monedas_2x6_RESETEAR_EL_MUNDO.mp4'},
+        {title:'T2 · Ep7', link:'https://filemoon.to/d/qvosbzuc05jk/30_Monedas_2x7_LOS_DOS_NUCLEOS.mp4'},
+        {title:'T2 · Ep8', link:'https://filemoon.to/d/xhzxlxxgl7qx/30_Monedas_2x8_EL_OJO_DE_DIOS.mp4'}
+      ]}
+    ]
+  }
+];
+
+// VARIABLES
+let itemsPerPage = 12;
+let seriesPage = 1;
+let filteredData = mediaData;
+let seriesFocus = 0;
+let inModal = false;
+let currentSeries = null;
+let activeSeasonIndex = 0;
+let modalFocusedEpisode = 0;
+let modalFocusedSeason = 0;
+
+// ELEMENTOS
+const searchEl = document.getElementById('search');
+const genreEl = document.getElementById('genre-filter');
+const yearEl = document.getElementById('filterYear');
+const overlay = document.getElementById('overlay');
+const modalTitle = document.getElementById('modal-title');
+const modalSub = document.getElementById('modal-sub');
+const seasonsEl = document.getElementById('seasons');
+const episodesEl = document.getElementById('episodes');
+
+document.getElementById('modal-close').onclick = ()=>{
+  overlay.classList.remove('show');
+  inModal = false;
+  setFocus(seriesFocus);
+};
+
+// AÑOS
+[...new Set(mediaData.map(i=>i.year))].sort((a,b)=>b-a).forEach(year=>{
+  const opt = document.createElement('option');
+  opt.value = year;
+  opt.textContent = year;
+  yearEl.appendChild(opt);
+});
+
+// RENDERIZAR
+function renderSeries(data){
+  const seriesEl = document.getElementById('series-grid');
+  const pagEl = document.getElementById('series-pagination');
+
+  const list = data.filter(i=>i.type==='series');
+  const totalPages = Math.ceil(list.length/itemsPerPage) || 1;
+  if(seriesPage > totalPages) seriesPage = totalPages;
+
+  const start = (seriesPage - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+
+  seriesEl.innerHTML = '';
+
+  list.slice(start, end).forEach(item=>{
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.tabIndex = 0;
+    div.innerHTML = `
+      <img class="img" src="${item.poster}">
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">${item.year} • ${item.genre}</div>
+      </div>`;
+    div.onclick = ()=>openSeriesModal(item);
+    seriesEl.appendChild(div);
+  });
+
+  pagEl.innerHTML = '';
+  for(let i=1;i<=totalPages;i++){
+    const b = document.createElement('button');
+    b.textContent = i;
+    if(i===seriesPage) b.classList.add('active');
+    b.onclick = ()=>{ seriesPage=i; renderSeries(filteredData); };
+    pagEl.appendChild(b);
+  }
+}
+
+// MODAL
+function openSeriesModal(series){
+  currentSeries = series;
+  modalTitle.textContent = series.title;
+  modalSub.textContent = 'Selecciona temporada y episodio';
+
+  seasonsEl.innerHTML = '';
+  episodesEl.innerHTML = '';
+
+  series.seasons.forEach((s,i)=>{
+    const btn = document.createElement('button');
+    btn.className = 'season-btn' + (i===0?' active':'');
+    btn.textContent = 'T' + s.season;
+    btn.onclick = ()=> setSeason(i);
+    seasonsEl.appendChild(btn);
+  });
+
+  setSeason(0);
+  inModal = true;
+  overlay.classList.add('show');
+}
+
+function setSeason(index){
+  activeSeasonIndex = index;
+  modalFocusedSeason = index;
+  modalFocusedEpisode = 0;
+
+  document.querySelectorAll('.season-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.season-btn')[index].classList.add('active');
+
+  renderEpisodes();
+}
+
+function renderEpisodes(){
+  episodesEl.innerHTML = '';
+
+  currentSeries.seasons[activeSeasonIndex].episodes.forEach((ep,i)=>{
+    const div = document.createElement('div');
+    div.className = 'episode-card';
+    div.tabIndex = 0;
+    div.innerHTML = `
+      <div style="color:#fff;font-size:14px;font-weight:bold">${ep.title}</div>
+      <button class="play-btn">Ver episodio</button>
+    `;
+    div.querySelector('button').onclick = ()=> window.open(ep.link, '_blank');
+    episodesEl.appendChild(div);
+  });
+}
+
+function setModalFocus(){
+  const eps = episodesEl.querySelectorAll('.episode-card');
+  eps.forEach(e=>e.classList.remove('focused'));
+  if(eps[modalFocusedEpisode]) eps[modalFocusedEpisode].classList.add('focused');
+}
+
+function setFocus(index){
+  const cards = document.querySelectorAll('#series-grid .card');
+  if(cards[index]) cards[index].focus();
+}
+
+// FILTROS
+function applyFilters(){
+  const q = searchEl.value.toLowerCase();
+  const g = genreEl.value;
+  const y = yearEl.value;
+
+  filteredData = mediaData.filter(m=>
+    m.type === 'series' &&
+    (g === 'all' || m.genre === g) &&
+    (!y || String(m.year) === y) &&
+    m.title.toLowerCase().includes(q)
+  );
+
+  seriesPage = 1;
+  renderSeries(filteredData);
+}
+
+searchEl.oninput = genreEl.onchange = yearEl.onchange = applyFilters;
+
+// NAVEGACIÓN
+document.addEventListener('keydown', e=>{
+  if(inModal){
+    const eps = episodesEl.querySelectorAll('.episode-card');
+
+    if(e.key==='ArrowRight'){ modalFocusedEpisode=(modalFocusedEpisode+1)%eps.length; setModalFocus(); e.preventDefault(); }
+    if(e.key==='ArrowLeft'){ modalFocusedEpisode=(modalFocusedEpisode-1+eps.length)%eps.length; setModalFocus(); e.preventDefault(); }
+    if(e.key==='ArrowUp'){ modalFocusedSeason=(modalFocusedSeason-1+currentSeries.seasons.length)%currentSeries.seasons.length; setSeason(modalFocusedSeason); e.preventDefault(); }
+    if(e.key==='ArrowDown'){ modalFocusedSeason=(modalFocusedSeason+1)%currentSeries.seasons.length; setSeason(modalFocusedSeason); e.preventDefault(); }
+    if(e.key==='Enter'){ window.open(currentSeries.seasons[activeSeasonIndex].episodes[modalFocusedEpisode].link,'_blank'); e.preventDefault(); }
+    if(e.key==='Escape'){ overlay.classList.remove('show'); inModal=false; setFocus(seriesFocus); }
+  } else {
+    let cards = document.querySelectorAll('#series-grid .card');
+    let idx = seriesFocus;
+
+    if(e.key==='ArrowRight'){ idx=(idx+1)%cards.length; cards[idx].focus(); e.preventDefault(); }
+    if(e.key==='ArrowLeft'){ idx=(idx-1+cards.length)%cards.length; cards[idx].focus(); e.preventDefault(); }
+    if(e.key==='Enter'){ cards[idx].click(); e.preventDefault(); }
+
+    seriesFocus = idx;
+  }
+});
+
+// INICIO
+renderSeries(mediaData);
+
+</script>
+
+</body>
+</html>
